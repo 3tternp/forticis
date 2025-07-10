@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations, and generate HTML report
+# Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations (including banners), and generate HTML report
 
 # Function to validate IP address
 validate_ip() {
@@ -84,8 +84,8 @@ fi
 # Define findings information (ID, Name, Risk Rating, Remediation)
 declare -A FINDINGS_INFO=(
     ["1.1"]="Ensure DNS server is configured|Medium|config system dns\nset primary 8.8.8.8\nset secondary 8.8.4.4\nend\nGUI: Network > DNS, set Primary DNS Server to 8.8.8.8, Secondary to 8.8.4.4"
-    ["2.1.1"]="Ensure Pre-Login Banner is set|Low|config system global\nset pre-login-banner enable\nend\nGUI: System > Replacement Messages > Extended View > Pre-login Disclaimer Message"
-    ["2.1.2"]="Ensure Post-Login-Banner is set|Low|config system global\nset post-login-banner enable\nend\nGUI: System > Replacement Messages > Extended View > Post-login Disclaimer Message"
+    ["2.1.1"]="Ensure Pre-Login Banner is set|Low|config system global\nset pre-login-banner enable\nend\nGUI: System > Replacement Messages > Extended View > Pre-login Disclaimer Message, enable and configure message"
+    ["2.1.2"]="Ensure Post-Login-Banner is set|Low|config system global\nset post-login-banner enable\nend\nGUI: System > Replacement Messages > Extended View > Post-login Disclaimer Message, enable and configure message"
     ["2.1.4"]="Ensure NTP is configured|High|config system ntp\nset ntpsync enable\nset server \"ntp2.fortiguard.com\"\nend"
     ["2.1.5"]="Ensure hostname is set|Low|config system global\nset hostname <desired_hostname>\nend"
     ["2.1.7"]="Disable USB Firmware and configuration installation|Medium|config system auto-install\nset auto-install-config disable\nset auto-install-image disable\nend"
@@ -105,7 +105,7 @@ declare -A FINDINGS_INFO=(
     ["4.2.5"]="Enable grayware detection on antivirus|Medium|config antivirus settings\nset grayware enable\nend"
     ["4.3.1"]="Enable Botnet C&C Domain Blocking DNS Filter|Medium|config dnsfilter profile\nedit <profile>\nset block-botnet enable\nend"
     ["4.4.2"]="Block applications on non-default ports|Medium|config application list\nedit <profile>\nset enforce-default-app-port enable\nend"
-    ["5.1.1"]="Enable Compromised Host Quarantine|High|config system automation-action\nedit \"Quarantine on Fortiswitch + FortiAP\"\nset action-type quarantine\nend\nGUI: Security Fabric > Automation"
+    ["5.1.1"]="Ensure Compromised Host Quarantine|High|config system automation-action\nedit \"Quarantine on Fortiswitch + FortiAP\"\nset action-type quarantine\nend\nGUI: Security Fabric > Automation"
     ["5.2.1.1"]="Ensure Security Fabric is Configured|Medium|config system csf\nset status enable\nset group-name <fabric_name>\nend\nGUI: Security Fabric > Settings"
     ["7.1.1"]="Ensure Event Logging|Medium|config log eventfilter\nset event enable\nend\nGUI: Log & Report > Log Settings"
     ["7.2.1"]="Encrypt Log Transmission to FortiAnalyzer/FortiManager|High|config log fortianalyzer setting\nset reliable enable\nset enc-algorithm high\nend"
@@ -140,7 +140,7 @@ check_config() {
     echo "[$status] $check_id|$name|$risk|$remediation" >> $TEMP_FILE
 }
 
-# Perform compliance checks
+# Perform compliance checks (including banner checks 2.1.1 and 2.1.2)
 check_config "1.1" "Ensure DNS server is configured" \
     "show system dns" \
     "set primary 8.8.8.8.*set secondary 8.8.4.4"
@@ -210,7 +210,7 @@ check_config "4.3.1" "Enable Botnet C&C Domain Blocking DNS Filter" \
 check_config "4.4.2" "Block applications on non-default ports" \
     "show application list" \
     "set enforce-default-app-port enable"
-check_config "5.1.1" "Enable Compromised Host Quarantine" \
+check_config "5.1.1" "Ensure Compromised Host Quarantine" \
     "show system automation-action" \
     "set action-type quarantine"
 check_config "5.2.1.1" "Ensure Security Fabric is Configured" \
