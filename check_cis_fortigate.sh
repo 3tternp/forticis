@@ -1,20 +1,82 @@
 #!/bin/bash
 
-# Script to check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations and generate HTML report
-# Usage: ./check_cis_fortigate_report.sh <fortigate_ip> <username> <password>
+# Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations, and generate HTML report
 
-# Check if required arguments are provided
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <fortigate_ip> <username> <password>"
+# Function to validate IP address
+validate_ip() {
+    local ip=$1
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        IFS='.' read -r -a octets <<< "$ip"
+        for octet in "${octets[@]}"; do
+            if [[ $octet -lt 0 || $octet -gt 255 ]]; then
+                return 1
+            fi
+        done
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to validate port
+validate_port() {
+    local port=$1
+    if [[ $port =~ ^[0-9]+$ && $port -ge 1 && $port -le 65535 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Prompt for user input
+echo "Enter FortiGate IP address:"
+read -r FORTIGATE_IP
+if ! validate_ip "$FORTIGATE_IP"; then
+    echo "Error: Invalid IP address format."
     exit 1
 fi
 
-FORTIGATE_IP=$1
-USERNAME=$2
-PASSWORD=$3
-SSH_COMMAND="sshpass -p $PASSWORD ssh -o StrictHostKeyChecking=no $USERNAME@$FORTIGATE_IP"
+echo "Enter SSH port (default 22):"
+read -r SSH_PORT
+if [ -z "$SSH_PORT" ]; then
+    SSH_PORT=22
+fi
+if ! validate_port "$SSH_PORT"; then
+    echo "Error: Invalid port number. Must be between 1 and 65535."
+    exit 1
+fi
+
+echo "Enter FortiGate username:"
+read -r USERNAME
+if [ -z "$USERNAME" ]; then
+    echo "Error: Username cannot be empty."
+    exit 1
+fi
+
+echo "Enter FortiGate password (input will be hidden):"
+read -s PASSWORD
+echo
+if [ -z "$PASSWORD" ]; then
+    echo "Error: Password cannot be empty."
+    exit 1
+fi
+
+# Set SSH command
+SSH_COMMAND="sshpass -p \"$PASSWORD\" ssh -p $SSH_PORT -o StrictHostKeyChecking=no $USERNAME@$FORTIGATE_IP"
 REPORT_FILE="cis_fortigate_compliance_report.html"
 TEMP_FILE="cis_fortigate_temp.txt"
+
+# Check if sshpass is installed
+if ! command -v sshpass &> /dev/null; then
+    echo "Error: sshpass is not installed. Install it using 'sudo apt-get install sshpass' or equivalent."
+    exit 1
+fi
+
+# Check if bc is installed
+if ! command -v bc &> /dev/null; then
+    echo "Error: bc is not installed. Install it using 'sudo apt-get install bc' or equivalent."
+    exit 1
+fi
 
 # Initialize temporary file for results
 : > $TEMP_FILE
@@ -66,6 +128,10 @@ check_config() {
 
     echo "Checking $check_id: $description..."
     output=$($SSH_COMMAND "$command" 2>/dev/null)
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to connect to $FORTIGATE_IP on port $SSH_PORT. Check credentials or connectivity."
+        exit 1
+    fi
     if echo "$output" | grep -q "$expected"; then
         status="PASS"
     else
@@ -280,3 +346,4 @@ EOF
 rm -f $TEMP_FILE
 
 echo "Compliance check completed. HTML report saved to $REPORT_FILE"
+echo "Open $REPORT_FILE in a web browser to view the report."
