@@ -1,6 +1,57 @@
 #!/bin/bash
 
 # Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations (including banners), and generate HTML report
+# Automatically installs sshpass and bc if not present
+
+# Function to detect package manager and install dependencies
+install_dependencies() {
+    local pkg_manager=""
+    local install_cmd=""
+
+    # Detect package manager
+    if command -v apt-get &> /dev/null; then
+        pkg_manager="apt"
+        install_cmd="sudo apt-get install -y"
+    elif command -v yum &> /dev/null; then
+        pkg_manager="yum"
+        install_cmd="sudo yum install -y"
+    else
+        echo "Error: No supported package manager (apt or yum) found."
+        exit 1
+    fi
+
+    # Check and install sshpass
+    if ! command -v sshpass &> /dev/null; then
+        echo "sshpass is not installed. Attempting to install using $pkg_manager..."
+        read -p "Proceed with installation? (y/n): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Error: sshpass is required. Please install manually and retry."
+            exit 1
+        fi
+        $install_cmd sshpass
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to install sshpass. Please install manually."
+            exit 1
+        fi
+        echo "sshpass installed successfully."
+    fi
+
+    # Check and install bc
+    if ! command -v bc &> /dev/null; then
+        echo "bc is not installed. Attempting to install using $pkg_manager..."
+        read -p "Proceed with installation? (y/n): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Error: bc is required. Please install manually and retry."
+            exit 1
+        fi
+        $install_cmd bc
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to install bc. Please install manually."
+            exit 1
+        fi
+        echo "bc installed successfully."
+    fi
+}
 
 # Function to validate IP address
 validate_ip() {
@@ -27,6 +78,9 @@ validate_port() {
         return 1
     fi
 }
+
+# Install dependencies
+install_dependencies
 
 # Prompt for user input
 echo "Enter FortiGate IP address:"
@@ -65,18 +119,6 @@ fi
 SSH_COMMAND="sshpass -p \"$PASSWORD\" ssh -p $SSH_PORT -o StrictHostKeyChecking=no $USERNAME@$FORTIGATE_IP"
 REPORT_FILE="cis_fortigate_compliance_report.html"
 TEMP_FILE="cis_fortigate_temp.txt"
-
-# Check if sshpass is installed
-if ! command -v sshpass &> /dev/null; then
-    echo "Error: sshpass is not installed. Install it using 'sudo apt-get install sshpass' or equivalent."
-    exit 1
-fi
-
-# Check if bc is installed
-if ! command -v bc &> /dev/null; then
-    echo "Error: bc is not installed. Install it using 'sudo apt-get install bc' or equivalent."
-    exit 1
-fi
 
 # Initialize temporary file for results
 : > $TEMP_FILE
@@ -129,7 +171,7 @@ check_config() {
     echo "Checking $check_id: $description..."
     output=$($SSH_COMMAND "$command" 2>/dev/null)
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to connect to $FORTIGATE_IP on port $SSH_PORT. Check credentials or connectivity."
+        echo "Error: Failed to connect to $FORTIGATE_IP on port $SSH_PORT. Check credentials, connectivity, or SSH access on the FortiGate."
         exit 1
     fi
     if echo "$output" | grep -q "$expected"; then
