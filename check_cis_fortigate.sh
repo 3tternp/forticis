@@ -1,7 +1,34 @@
 #!/bin/bash
 
 # Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations (including banners), and generate HTML report
-# Automatically installs sshpass and bc if not present
+# Version: 1.0.0
+# Features: Auto-installs dependencies, displays script banner, requires user permission before execution
+
+# Display script banner
+cat << 'EOF'
+
+========================================
+   CIS FortiGate 7.0.x Compliance Checker
+========================================
+Version: 1.0.0
+Purpose: Automates CIS FortiGate 7.0.x Benchmark checks and generates an HTML report.
+Features:
+  - Checks compliance for FortiGate firewall configurations
+  - Includes pre-login and post-login banner checks (2.1.1, 2.1.2)
+  - Auto-installs sshpass and bc if missing
+  - Generates report with pie chart and remediation steps
+Date: 2025-07-10
+========================================
+
+EOF
+
+# Prompt for user permission to proceed
+echo "Do you want to proceed with the compliance check? (y/n):"
+read -r confirm
+if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Execution aborted by user."
+    exit 0
+fi
 
 # Function to detect package manager and install dependencies
 install_dependencies() {
@@ -307,7 +334,7 @@ cat << EOF > $REPORT_FILE
 <body>
     <div class="container">
         <h1 class="text-center mb-4">CIS FortiGate 7.0.x Benchmark Compliance Report</h1>
-        <p class="text-center">Generated on: $(date '+%Y-%m-%d %H:%M:%S')</p>
+        <p class="text-center">Generated on: $(date '+%Y-%m-%d %H:%M:%S %Z')</p>
         <hr>
 
         <!-- Pie Chart -->
