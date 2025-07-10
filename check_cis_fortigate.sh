@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to interactively collect FortiGate credentials, check CIS FortiGate 7.0.x Benchmark v1.3.0 automated recommendations (including banners), and generate HTML report
+# Script to interactively collect FortiGate credentials, check CIS FortiGate Benchmark v1.3.0 automated recommendations and generate HTML report
 # Version: 1.0.0
 # Features: Auto-installs dependencies, displays script banner, requires user permission before execution
 
