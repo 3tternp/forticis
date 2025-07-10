@@ -10,9 +10,7 @@ cat << 'EOF'
 ========================================
    CIS FortiGate Compliance Checker
 ========================================
-Version: 1.0.0
-Purpose: Automates CIS FortiGate Benchmark checks and generates an HTML report.
-Developer: Astra
+Version: 1.0.0          Developer: Astra
 ========================================
 
 EOF
