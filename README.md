@@ -96,6 +96,3 @@ Username (e.g., admin).
 
 Password (hidden input).
 ```
-Execution: Connects to the FortiGate via SSH, runs CIS checks, and generates the report.
-
-Output: Creates cis_fortigate_compliance_report.html
