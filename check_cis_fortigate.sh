@@ -8,16 +8,11 @@
 cat << 'EOF'
 
 ========================================
-   CIS FortiGate 7.0.x Compliance Checker
+   CIS FortiGate Compliance Checker
 ========================================
 Version: 1.0.0
-Purpose: Automates CIS FortiGate 7.0.x Benchmark checks and generates an HTML report.
-Features:
-  - Checks compliance for FortiGate firewall configurations
-  - Includes pre-login and post-login banner checks (2.1.1, 2.1.2)
-  - Auto-installs sshpass and bc if missing
-  - Generates report with pie chart and remediation steps
-Date: 2025-07-10
+Purpose: Automates CIS FortiGate Benchmark checks and generates an HTML report.
+Developer: Astra
 ========================================
 
 EOF
