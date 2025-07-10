@@ -58,7 +58,7 @@ cd forticis
 
 Make the Script Executable:
 
-chmod +x check_cis_fortigate_interactive.sh
+chmod +x check_cis_fortigate.sh
 
 ```
 # Dependencies:
@@ -76,7 +76,7 @@ sudo yum install sshpass bc     # CentOS/RHEL
 ```
 Run the Script:
 
-./check_cis_fortigate_interactive.sh
+./check_cis_fortigate.sh
 ```
 # Script Flow:
 ```
