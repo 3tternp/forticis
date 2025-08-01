@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 import subprocess
+import re
+import threading
 
 SCRIPT_PATH = "./fortigate_cis_audit.sh"  # Make sure the path is correct
 
@@ -16,22 +18,48 @@ def run_script():
 
     cmd = ["bash", SCRIPT_PATH, ip, port, user, pwd]
 
-    try:
-        output_text.delete("1.0", tk.END)
-        output_text.insert(tk.END, f"Starting CIS Audit on {ip}...\n\n")
+    def handle_process():
+        try:
+            output_text.delete("1.0", tk.END)
+            output_text.insert(tk.END, f"Starting CIS Audit on {ip}...\n\n")
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.PIPE,  # Enable stdin for input
+                text=True
+            )
 
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            # Regular expression to detect common prompts
+            prompt_pattern = re.compile(r"\[.*\]\s*$|continue\?\s*$", re.IGNORECASE)
 
-        for line in process.stdout:
-            output_text.insert(tk.END, line)
-            output_text.see(tk.END)
-            output_text.update()
+            while True:
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
+                    break
+                output_text.insert(tk.END, line)
+                output_text.see(tk.END)
+                output_text.update()
 
-        process.wait()
-        output_text.insert(tk.END, "\n\nAudit Completed.")
+                # Check if the line looks like a prompt
+                if prompt_pattern.search(line):
+                    # Prompt user for input via a dialog
+                    user_input = tk.simpledialog.askstring(
+                        "Input Required", 
+                        f"Script is asking:\n{line}\nEnter your response:"
+                    )
+                    if user_input is not None:
+                        process.stdin.write(user_input + "\n")
+                        process.stdin.flush()
 
-    except Exception as e:
-        messagebox.showerror("Execution Error", str(e))
+            process.wait()
+            output_text.insert(tk.END, "\n\nAudit Completed.")
+        except Exception as e:
+            messagebox.showerror("Execution Error", str(e))
+
+    # Run the process in a separate thread to keep GUI responsive
+    threading.Thread(target=handle_process, daemon=True).start()
 
 # GUI Setup
 root = tk.Tk()
@@ -59,5 +87,3 @@ output_text = scrolledtext.ScrolledText(root, width=80, height=20)
 output_text.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
 
 root.mainloop()
-
-
