@@ -7,7 +7,7 @@ This Bash script automates compliance checks for FortiGate firewalls running For
 
 <img width="812" height="656" alt="image" src="https://github.com/user-attachments/assets/3f5ad8d1-4549-41d9-8544-7be0eb63f7d5" />
 
-<img width="1358" height="691" alt="image" src="https://github.com/user-attachments/assets/8f799807-8a1a-441f-8187-6e15c6ac5d1d" />
+<img width="1906" height="966" alt="image" src="https://github.com/user-attachments/assets/abdb12f0-73ba-41c5-891c-d55c9770d6c6" />
 
 
 
