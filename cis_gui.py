@@ -1,167 +1,105 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 import subprocess, os, datetime, time
-import shutil
-import sys
 
 def generate_html(results, output_html):
     html = """
     <html><head><title>CIS 7.0.x Report</title>
     <style>
-    body {font-family: Arial, sans-serif;}
-    table {border-collapse: collapse; width: 100%;}
-    th, td {border: 1px solid #ddd; padding: 8px;}
-    th {background-color: #2c3e50; color: white;}
-    .critical {background-color: #e74c3c;}
-    .high {background-color: #e67e22;}
-    .medium {background-color: #f1c40f;}
-    .low {background-color: #2ecc71;}
-    .pass {color: #27ae60; font-weight: bold;}
-    .fail {color: #c0392b; font-weight: bold;}
-    .manual_review {color: #8e44ad; font-weight: bold;}
+    body {{font-family: Arial, sans-serif;}}
+    table {{border-collapse: collapse; width: 100%;}}
+    th, td {{border: 1px solid #ddd; padding: 8px;}}
+    th {{background-color: #2c3e50; color: white;}}
+    .critical {{background-color: #e74c3c;}}
+    .high {{background-color: #e67e22;}}
+    .medium {{background-color: #f1c40f;}}
+    .low {{background-color: #2ecc71;}}
+    .pass {{color: #27ae60; font-weight: bold;}}
+    .fail {{color: #c0392b; font-weight: bold;}}
     </style></head><body>
     <h2>CIS 7.0.x Compliance Report</h2>
     <p>Generated: {}</p>
     <table>
     <tr><th>Finding ID</th><th>Risk</th><th>Status</th><th>Fix Type</th><th>Remediation</th></tr>
-    """.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %z"))
+    """.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     for f in results:
         html += f"<tr class='{f['risk'].lower()}'><td>{f['id']}</td><td>{f['risk']}</td>"
-        html += f"<td class='{f['status'].lower().replace('_', '-') if f['status'] != 'Pass' and f['status'] != 'Fail' else f['status'].lower()}'>{f['status']}</td>"
+        html += f"<td class='{f['status'].lower()}'>{f['status']}</td>"
         html += f"<td>{f['fix_type']}</td><td>{f['remediation']}</td></tr>"
 
     html += "</table></body></html>"
-    try:
-        with open(output_html, "w") as file:
-            file.write(html)
-    except IOError as e:
-        return False
-    return True
+    with open(output_html, "w") as file:
+        file.write(html)
 
 def run_checks(config_file, status_text):
     start_time = time.time()
     temp_out = "cis_results.tmp"
     findings = []
 
-    # Log working directory
-    cwd = os.getcwd()
-    status_text.insert(tk.END, f"Working directory: {cwd}\n", "info")
-
-    # Check for required dependencies
-    if not shutil.which("bash"):
-        status_text.insert(tk.END, "Error: 'bash' not found in system path.\n", "error")
-        return []
-    if not shutil.which("python3"):
-        status_text.insert(tk.END, "Error: 'python3' not found in system path.\n", "error")
-        return []
-
     try:
-        # Validate and log file details
-        status_text.insert(tk.END, f"Attempting to access config file: {config_file}\n", "info")
-        if not os.path.isabs(config_file):
-            config_file = os.path.abspath(config_file)
-            status_text.insert(tk.END, f"Converted to absolute path: {config_file}\n", "info")
-        if not os.path.exists(config_file):
-            raise FileNotFoundError(f"Config file does not exist: {config_file}")
-        if not os.access(config_file, os.R_OK):
-            raise PermissionError(f"Config file is not readable: {config_file}. Run 'chmod 644 {config_file}' to fix permissions.")
-
-        # Validate file extension
-        if not config_file.lower().endswith(('.conf', '.txt')):
-            raise ValueError("Please select a valid FortiGate configuration file (e.g., .conf or .txt).")
-
-        # Determine script path (check current directory and script's own directory)
-        script_path = os.path.join(cwd, "cis_check.sh")
-        if not os.path.exists(script_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            script_path = os.path.join(script_dir, "cis_check.sh")
-            if not os.path.exists(script_path):
-                raise FileNotFoundError(f"cis_check.sh not found in {cwd} or {script_dir}. Ensure it’s in the same directory as this script or specify its full path.")
-
-        # Ensure script is executable
-        if not os.access(script_path, os.X_OK):
-            raise PermissionError(f"cis_check.sh is not executable: {script_path}. Run 'chmod +x {script_path}' to fix.")
-
-        # Run the bash script with quoted path and full script path
-        cmd = [shutil.which("bash"), script_path, f"'{config_file}'", temp_out]
-        status_text.insert(tk.END, f"Executing command: {' '.join(cmd)}\n", "info")
-        result = subprocess.run(cmd, 
-                              capture_output=True, text=True, check=False, cwd=cwd)
-        if result.returncode != 0:
-            status_text.insert(tk.END, f"Error running cis_check.sh: {result.stderr}\n", "error")
-            return []
+        # Run the bash script and check for errors
+        result = subprocess.run(["bash", "cis_check.sh", config_file, temp_out], 
+                              capture_output=True, text=True, check=True)
         if not os.path.exists(temp_out) or os.path.getsize(temp_out) == 0:
-            raise FileNotFoundError(f"No output generated by cis_check.sh. Output: {result.stdout}\nError: {result.stderr}")
+            raise FileNotFoundError("No output generated by cis_check.sh")
 
         # Parse findings
         with open(temp_out) as f:
-            current_finding = {}
             for line in f:
-                line = line.rstrip(";").strip()
-                if not line:
-                    if current_finding:
-                        findings.append(current_finding)
-                        current_finding = {}
-                    continue
                 try:
-                    key, value = line.split("=", 1)
-                    current_finding[key] = value.replace("\\n", "\n").replace(",", ";")
-                except ValueError as e:
-                    status_text.insert(tk.END, f"Error parsing line: {line} ({str(e)})\n", "error")
+                    data = dict(item.split("=") for item in line.strip().split(";"))
+                    findings.append({
+                        "id": data["FINDING_ID"],
+                        "risk": data["RISK"],
+                        "status": data["STATUS"],
+                        "fix_type": data["FIX_TYPE"],
+                        "remediation": data["REMEDIATION"]
+                    })
+                except (KeyError, ValueError) as e:
+                    status_text.insert(tk.END, f"Error parsing line: {line.strip()} ({str(e)})\n", "error")
                     continue
-            if current_finding:
-                findings.append(current_finding)
 
         os.remove(temp_out)
 
         # Calculate summary
         total_checks = len(findings)
-        passed = sum(1 for f in findings if f.get("STATUS") == "Pass")
-        failed = sum(1 for f in findings if f.get("STATUS") == "Fail")
-        manual = sum(1 for f in findings if f.get("STATUS") == "manual_review")
+        passed = sum(1 for f in findings if f["status"] == "Pass")
+        failed = total_checks - passed
         risk_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
         for f in findings:
-            if f.get("RISK") in risk_counts:
-                risk_counts[f.get("RISK")] += 1
+            if f["risk"] in risk_counts:
+                risk_counts[f["risk"]] += 1
 
         # Display summary
         execution_time = time.time() - start_time
         file_size = os.path.getsize(config_file) / 1024  # Size in KB
         status_text.insert(tk.END, f"Config File: {config_file} ({file_size:.2f} KB)\n", "info")
         status_text.insert(tk.END, f"Execution Time: {execution_time:.2f} seconds\n\n", "info")
-        status_text.insert(tk.END, f"Summary: {total_checks} checks, {passed} passed, {failed} failed, {manual} manual\n", "info")
+        status_text.insert(tk.END, f"Summary: {total_checks} checks, {passed} passed, {failed} failed\n", "info")
         status_text.insert(tk.END, "Risk Breakdown:\n", "info")
         for risk, count in risk_counts.items():
             status_text.insert(tk.END, f"  {risk}: {count}\n", "info")
 
         status_text.insert(tk.END, "\nDetailed Findings:\n", "info")
         for f in findings:
-            tag = "pass" if f.get("STATUS") == "Pass" else "fail" if f.get("STATUS") == "Fail" else "manual_review"
+            tag = "pass" if f["status"] == "Pass" else "fail"
             status_text.insert(tk.END, 
-                f"ID: {f.get('FINDING_ID', 'N/A')}, Risk: {f.get('RISK', 'N/A')}, Status: {f.get('STATUS', 'N/A')}, "
-                f"Fix Type: {f.get('FIX_TYPE', 'N/A')}, Remediation: {f.get('REMEDIATION', 'N/A')}\n", tag)
+                f"ID: {f['id']}, Risk: {f['risk']}, Status: {f['status']}, "
+                f"Fix Type: {f['fix_type']}, Remediation: {f['remediation']}\n", tag)
         
-        status_text.insert(tk.END, "\nAttempting to save report as cis_report.html\n", "info")
-        if generate_html([{"id": f.get("FINDING_ID", "N/A"), "risk": f.get("RISK", "N/A"), "status": f.get("STATUS", "N/A"), 
-                         "fix_type": f.get("FIX_TYPE", "N/A"), "remediation": f.get("REMEDIATION", "N/A")} for f in findings], "cis_report.html"):
-            status_text.insert(tk.END, "Report saved as cis_report.html\n", "info")
-        else:
-            status_text.insert(tk.END, "Failed to save report. Check write permissions.\n", "error")
+        status_text.insert(tk.END, "\nReport saved as cis_report.html\n", "info")
         return findings
 
-    except (FileNotFoundError, ValueError, PermissionError) as e:
-        status_text.insert(tk.END, f"Error: {str(e)}\n", "error")
+    except subprocess.CalledProcessError as e:
+        status_text.insert(tk.END, f"Error running cis_check.sh: {e.stderr}\n", "error")
         return []
-    except subprocess.SubprocessError as e:
-        status_text.insert(tk.END, f"Subprocess error: {str(e)}\n", "error")
+    except FileNotFoundError as e:
+        status_text.insert(tk.END, f"Error: {str(e)}\n", "error")
         return []
     except Exception as e:
         status_text.insert(tk.END, f"Unexpected error: {str(e)}\n", "error")
         return []
-    finally:
-        if os.path.exists(temp_out):
-            os.remove(temp_out)
 
 def save_status(status_text):
     output_file = filedialog.asksaveasfilename(
@@ -170,20 +108,21 @@ def save_status(status_text):
         filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
     )
     if output_file:
-        try:
-            with open(output_file, "w") as f:
-                f.write(status_text.get(1.0, tk.END))
-            messagebox.showinfo("Status Saved", f"Status report saved to: {output_file}")
-        except IOError as e:
-            messagebox.showerror("Save Error", f"Failed to save status: {str(e)}")
+        with open(output_file, "w") as f:
+            f.write(status_text.get(1.0, tk.END))
+        messagebox.showinfo("Status Saved", f"Status report saved to: {output_file}")
 
 def select_file(status_text):
-    file_path = filedialog.askopenfilename(title="Select Config File", filetypes=[("Config files", "*.conf *.txt"), ("All files", "*.*")])
+    file_path = filedialog.askopenfilename(title="Select Config File")
     if file_path:
         status_text.delete(1.0, tk.END)  # Clear previous status
         status_text.insert(tk.END, f"Selected file: {file_path}\nRunning CIS checks...\n\n", "info")
         results = run_checks(file_path, status_text)
-        if not results:
+        if results:
+            output_html = "cis_report.html"
+            generate_html(results, output_html)
+            messagebox.showinfo("Report Generated", f"Report saved: {output_html}")
+        else:
             messagebox.showerror("Error", "Failed to generate report. Check status for details.")
 
 def clear_status(status_text):
@@ -218,7 +157,7 @@ banner.pack(fill="x")
 # Instructions
 tk.Label(
     root,
-    text="Select your system config file to check (e.g., .conf):",
+    text="Select your system config file to check:",
     font=("Arial", 12),
     bg="#ecf0f1"
 ).pack(pady=10)
@@ -274,7 +213,6 @@ status_text.pack(pady=10, padx=10)
 # Configure text tags for color-coding
 status_text.tag_configure("pass", foreground="#27ae60", font=("Arial", 10, "bold"))
 status_text.tag_configure("fail", foreground="#c0392b", font=("Arial", 10, "bold"))
-status_text.tag_configure("manual_review", foreground="#8e44ad", font=("Arial", 10, "bold"))
 status_text.tag_configure("info", foreground="#2c3e50")
 status_text.tag_configure("error", foreground="#e74c3c", font=("Arial", 10, "bold"))
 
